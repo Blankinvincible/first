@@ -66,10 +66,17 @@ class Evaluator:
         arith = re.search(r"(\d+)\s*([\+\-\*/])\s*(\d+)", task)
         if arith:
             a, op, b = int(arith.group(1)), arith.group(2), int(arith.group(3))
-            if op == "/" and b == 0:
-                reasons.append("事实核查失败: 任务包含除零，无法得到有效数值真值。")
-                return False
-            truth = {"+": a + b, "-": a - b, "*": a * b, "/": a / b}[op]
+            if op == "+":
+                truth = a + b
+            elif op == "-":
+                truth = a - b
+            elif op == "*":
+                truth = a * b
+            else:
+                if b == 0:
+                    reasons.append("事实核查失败: 任务包含除零，无法得到有效数值真值。")
+                    return False
+                truth = a / b
             got_num = self._extract_first_number(answer)
             if got_num is None or abs(got_num - float(truth)) > 1e-9:
                 reasons.append(f"事实核查失败: 该算式正确结果应为 {truth}，但答案为 {answer}")
