@@ -66,6 +66,9 @@ class Evaluator:
         arith = re.search(r"(\d+)\s*([\+\-\*/])\s*(\d+)", task)
         if arith:
             a, op, b = int(arith.group(1)), arith.group(2), int(arith.group(3))
+            if op == "/" and b == 0:
+                reasons.append("事实核查失败: 任务包含除零，无法得到有效数值真值。")
+                return False
             truth = {"+": a + b, "-": a - b, "*": a * b, "/": a / b}[op]
             got_num = self._extract_first_number(answer)
             if got_num is None or abs(got_num - float(truth)) > 1e-9:
@@ -132,4 +135,3 @@ class Evaluator:
         else:
             score += 0.2 if sandbox_ok else 0.0
         return round(score, 3)
-

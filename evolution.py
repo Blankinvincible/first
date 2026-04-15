@@ -99,17 +99,76 @@ class ToolBootstrapper:
         if len(body) != 1 or not isinstance(body[0], ast.FunctionDef):
             raise ValueError("工具代码必须且只能包含一个函数定义。")
         fn = body[0]
-        forbidden = (ast.Import, ast.ImportFrom, ast.Global, ast.Nonlocal, ast.ClassDef, ast.With, ast.Try)
+        forbidden = (
+            ast.Import,
+            ast.ImportFrom,
+            ast.Global,
+            ast.Nonlocal,
+            ast.ClassDef,
+            ast.With,
+            ast.Try,
+            ast.While,
+            ast.For,
+            ast.AsyncFor,
+            ast.Lambda,
+            ast.Attribute,
+            ast.Raise,
+            ast.Delete,
+            ast.Yield,
+            ast.YieldFrom,
+        )
+        allowed_calls = {
+            "abs",
+            "min",
+            "max",
+            "sum",
+            "len",
+            "round",
+            "sorted",
+            "str",
+            "int",
+            "float",
+            "bool",
+            "list",
+            "dict",
+            "set",
+            "tuple",
+            "range",
+        }
         for node in ast.walk(fn):
             if isinstance(node, forbidden):
                 raise ValueError("工具代码包含被禁止语法（import/class/try/with等）。")
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"exec", "eval", "__import__"}:
-                raise ValueError("工具代码使用了不安全调用。")
+            if isinstance(node, ast.Call):
+                if not isinstance(node.func, ast.Name):
+                    raise ValueError("工具代码调用方式不安全（仅允许白名单内置函数）。")
+                # 阻断exec/eval/__import__及其他非白名单调用，也阻断递归导致资源耗尽
+                if node.func.id == fn.name:
+                    raise ValueError("工具代码不允许递归调用，避免资源耗尽。")
+                if node.func.id not in allowed_calls:
+                    raise ValueError(f"工具代码调用了不在白名单中的函数: {node.func.id}")
         return fn.name
 
     def _load_single_tool(self, code: str) -> None:
         local_ns: Dict[str, Any] = {}
-        exec(code, {}, local_ns)
+        safe_builtins = {
+            "abs": abs,
+            "min": min,
+            "max": max,
+            "sum": sum,
+            "len": len,
+            "round": round,
+            "sorted": sorted,
+            "str": str,
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "list": list,
+            "dict": dict,
+            "set": set,
+            "tuple": tuple,
+            "range": range,
+        }
+        exec(code, {"__builtins__": safe_builtins}, local_ns)
         for k, v in local_ns.items():
             if callable(v):
                 self.tools[k] = v
@@ -118,4 +177,3 @@ class ToolBootstrapper:
         if name not in self.tools:
             raise KeyError(f"工具不存在: {name}")
         return self.tools[name](*args, **kwargs)
-

@@ -156,7 +156,12 @@ class LongTermMemory:
         return scored[:top_k]
 
     def replay_experience(
-        self, question: str, attempts: List[str], final_result: str, rules: Optional[List[str]] = None
+        self,
+        question: str,
+        attempts: List[str],
+        final_result: str,
+        rules: Optional[List[str]] = None,
+        timestamp: Optional[str] = None,
     ) -> str:
         """经验回放入口：解决任务后沉淀经验。"""
         derived_rules = rules or self._derive_rules(attempts, final_result)
@@ -165,7 +170,7 @@ class LongTermMemory:
             attempts=attempts,
             final_result=final_result,
             rules=derived_rules,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=timestamp or datetime.now(timezone.utc).isoformat(),
         )
         return self.add_experience(exp)
 
@@ -181,4 +186,3 @@ class LongTermMemory:
         if not rules:
             rules.append("回答前进行逻辑自检与事实核对。")
         return rules
-

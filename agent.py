@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Dict, List
 
 from evaluator import EvaluationReport, Evaluator
@@ -75,19 +76,20 @@ class AGIAgent:
         self.memory = memory
         self.evaluator = evaluator
         self.evolver = evolver
-        self.tools = tool_bootstrapper
+        self.tool_bootstrapper = tool_bootstrapper
         self.llm = llm
         self.short_memory = ShortTermMemory(max_turns=8)
-        self.max_attempts = max_attempts
+        self.max_attempts = max(1, max_attempts)
 
     def solve(self, task: str, task_type: str = "general") -> AgentResult:
+        solve_started = datetime.now(timezone.utc).isoformat()
         # 1) 先检索长期记忆经验
         related = self.memory.search_related(task, top_k=3)
         memory_hints = self._build_memory_hints(related)
         attempts: List[Dict] = []
 
         final_answer = ""
-        final_report: EvaluationReport | None = None
+        final_report: EvaluationReport
 
         for _ in range(self.max_attempts):
             system_prompt = self.evolver.get_system_prompt()
@@ -114,8 +116,9 @@ class AGIAgent:
             attempts=attempt_texts,
             final_result=final_answer,
             rules=rules,
+            timestamp=solve_started,
         )
-        return AgentResult(answer=final_answer, report=final_report, attempts=attempts)  # type: ignore[arg-type]
+        return AgentResult(answer=final_answer, report=final_report, attempts=attempts)
 
     @staticmethod
     def _build_memory_hints(related: List[Dict]) -> str:
@@ -127,4 +130,3 @@ class AGIAgent:
             rules = meta.get("rules", [])
             lines.append(f"- 相似度={item.get('score', 0):.3f}; 规则={rules}")
         return "\n".join(lines)
-
