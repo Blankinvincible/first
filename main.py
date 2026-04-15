@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from agent import AGIAgent, OpenAIOrMockLLM
@@ -19,6 +20,9 @@ from memory import LongTermMemory
 def run_demo() -> None:
     base_dir = Path(__file__).resolve().parent
     state_dir = base_dir / "state"
+    # 为了稳定演示“先错后对”，每次运行先重置状态目录
+    if state_dir.exists():
+        shutil.rmtree(state_dir)
     state_dir.mkdir(parents=True, exist_ok=True)
 
     memory = LongTermMemory(persist_dir=str(state_dir / "memory"))
@@ -26,7 +30,8 @@ def run_demo() -> None:
     evolver = PromptEvolver(state_file=str(state_dir / "prompt_state.json"))
     tools = ToolBootstrapper(registry_file=str(state_dir / "tools_registry.json"))
     evaluator = Evaluator(llm=llm, memory=memory)
-    agent = AGIAgent(memory=memory, evaluator=evaluator, evolver=evolver, tool_bootstrapper=tools, llm=llm, max_attempts=2)
+    # 每次 solve 只尝试一次：第一轮保留错误结果，第二轮体现进化后的纠错效果
+    agent = AGIAgent(memory=memory, evaluator=evaluator, evolver=evolver, tool_bootstrapper=tools, llm=llm, max_attempts=1)
 
     task = "请直接回答：2+2等于几？只输出数字。"
 
@@ -55,4 +60,3 @@ def run_demo() -> None:
 
 if __name__ == "__main__":
     run_demo()
-
