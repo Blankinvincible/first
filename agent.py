@@ -110,7 +110,7 @@ class AGIAgent:
 
         # 3) 任务结束后做经验回放沉淀
         attempt_texts = [f"第{i+1}次: {a['answer']} | 评估: {a['report'].reasons}" for i, a in enumerate(attempts)]
-        rules = ["失败经验已触发元提示词更新。"] if final_report and not final_report.passed else ["该解法可复用。"]
+        rules = ["失败经验已触发元提示词更新。"] if not final_report.passed else ["该解法可复用。"]
         self.memory.replay_experience(
             question=task,
             attempts=attempt_texts,

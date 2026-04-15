@@ -30,7 +30,8 @@ def run_demo() -> None:
     evolver = PromptEvolver(state_file=str(state_dir / "prompt_state.json"))
     tools = ToolBootstrapper(registry_file=str(state_dir / "tools_registry.json"))
     evaluator = Evaluator(llm=llm, memory=memory)
-    # 每次 solve 只尝试一次：第一轮保留错误结果，第二轮体现进化后的纠错效果
+    # 每次 solve 只尝试一次：这是故意设置，
+    # 用于清晰演示“两阶段进化”——第一轮失败并学习，第二轮同题成功。
     agent = AGIAgent(memory=memory, evaluator=evaluator, evolver=evolver, tool_bootstrapper=tools, llm=llm, max_attempts=1)
 
     task = "请直接回答：2+2等于几？只输出数字。"
